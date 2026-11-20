@@ -28,7 +28,24 @@ function expectedSubject(old) {
 
 /* Chay khi bam Send */
 function onMessageSendHandler(event) {
-  var item = Office.context.mailbox.item;
+  var done = false;
+  function finish(opts) {
+    if (done) return;
+    done = true;
+    event.completed(opts);
+  }
+  /* An toan: neu qua 8 giay chua xong thi cho gui, khong treo mail */
+  var timer = setTimeout(function () { finish({ allowEvent: true }); }, 8000);
+  try {
+    checkSubject(Office.context.mailbox.item, function (opts) { clearTimeout(timer); finish(opts); });
+  } catch (e) {
+    clearTimeout(timer);
+    finish({ allowEvent: true });
+  }
+}
+
+function checkSubject(item, complete) {
+  var event = { completed: complete };
   item.subject.getAsync(function (r) {
     if (r.status !== Office.AsyncResultStatus.Succeeded) {
       event.completed({ allowEvent: true });
@@ -75,6 +92,9 @@ function fixSubject(event) {
     item.subject.setAsync(nw, function () { event.completed(); });
   });
 }
+
+/* Outlook moi / Outlook web can Office.onReady de khoi dong add-in */
+try { if (typeof Office.onReady === "function") { Office.onReady(function () {}); } } catch (e) {}
 
 Office.actions.associate("onMessageSendHandler", onMessageSendHandler);
 Office.actions.associate("fixSubject", fixSubject);
